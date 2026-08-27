@@ -2,7 +2,7 @@
 
 Read-only stdio MCP server over the shop.db SQLite database (course assignment 2).
 
-Lab-wide standards apply: `../../standards/{workflow,reporting,project-structure}.md`
+Standards summary (self-contained): SDD — the spec is the contract; atomic commits (one prompt → one commit); review in a clean context; deterministic gates before done.
 (SDD, atomic commits, model sizing, clean-context review, worktrees).
 
 ## Stack
@@ -23,7 +23,7 @@ Lab-wide standards apply: `../../standards/{workflow,reporting,project-structure
 - `docs/` — spec, prompt log, reports, token accounting
 
 Context boundaries: agents work inside this repository only. Never read or edit
-anything above it (in particular the lab's `../../raw/` and `../../base/`).
+anything above the repository root.
 
 ## Commit format
 
@@ -75,7 +75,7 @@ self-review in the writing context.
 
 Every prompt sent to an LLM is logged in `docs/prompts/` (one file per
 prompt), tokens/cost in `docs/llm-usage.md`, run results in `docs/reports/`.
-See `../../standards/reporting.md`.
+Every prompt sent to an LLM is logged in `docs/prompts/` (one file per prompt), tokens/cost in `docs/llm-usage.md`, run reports in `docs/reports/`.
 
 ## Secrets
 
