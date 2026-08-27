@@ -1,0 +1,10 @@
+.env
+.venv/
+__pycache__/
+*.pyc
+.DS_Store
+
+# SQLite runtime sidecars — the data/shop.db fixture itself IS committed,
+# so never ignore *.db here.
+*.db-wal
+*.db-shm
