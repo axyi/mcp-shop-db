@@ -8,7 +8,8 @@ Standards summary (self-contained): SDD — the spec is the contract; atomic com
 ## Stack
 
 - Language: Python >= 3.12, environment managed by **uv**
-- Frameworks/libs: `mcp` Python SDK (FastMCP) for the server; `sqlite3` from the
+- Frameworks/libs: `mcp` Python SDK (MCPServer, formerly FastMCP) for the
+  server; `sqlite3` from the
   standard library for database access — no ORM, no other runtime dependencies
 - Tooling: uv (lockfile-pinned), pytest, ruff
 

@@ -234,6 +234,10 @@ if __name__ == "__main__":
     `.is_error`.
   - Leaving the `async with Client(...)` block is the clean shutdown; there is no
     separate `close()` call.
+  - `@mcp.tool(...)` registers the tool but returns the function unchanged, so
+    `server.list_tables`, `server.describe_table` and `server.read_query` stay
+    plain callables. Every test in section 5 except `tests/test_protocol.py`
+    calls them directly.
 
 ### 3.3 `pyproject.toml` — verbatim
 
@@ -468,16 +472,11 @@ addopts = "-q"
   )
   ```
 
-  Because the policy is an allowlist, every other action constant is denied
-  without being enumerated — including `SQLITE_INSERT`, `SQLITE_UPDATE`,
-  `SQLITE_DELETE`, `SQLITE_DROP_TABLE`, `SQLITE_ALTER_TABLE`,
-  `SQLITE_CREATE_TABLE`, `SQLITE_CREATE_TEMP_TABLE`, `SQLITE_CREATE_VIEW`,
-  `SQLITE_CREATE_INDEX`, `SQLITE_CREATE_TRIGGER`, `SQLITE_CREATE_VTABLE`,
-  `SQLITE_DROP_VTABLE`, `SQLITE_PRAGMA`, `SQLITE_ATTACH`, `SQLITE_DETACH`,
-  `SQLITE_TRANSACTION`, `SQLITE_SAVEPOINT`, `SQLITE_ANALYZE` and
-  `SQLITE_REINDEX`. `SQLITE_RECURSIVE` is allowed so that recursive CTEs work;
-  `SQLITE_FUNCTION` is allowed with a denylist so that `SUM`, `COUNT`,
-  `strftime` and friends work while `load_extension` does not.
+  Every action not in `ALLOWED_ACTIONS` is denied by construction (all
+  write/DDL/temp-object/virtual-table/PRAGMA/ATTACH/DETACH/transaction/savepoint
+  opcodes included). `SQLITE_RECURSIVE` and `SQLITE_FUNCTION` are in the allowlist
+  because the control queries need recursive CTEs and aggregates; the function
+  denylist is what still stops `load_extension`.
 - **REQ-40 (MUST)** A denied action surfaces as an `sqlite3.Error` whose message
   contains `not authorized`. Do not call
   `conn.enable_load_extension(True)` anywhere.
@@ -615,9 +614,10 @@ addopts = "-q"
   ```
 
   Behaviour, in order:
-  1. enumerate the queryable table set with the query of REQ-33;
-  2. if `table` is not an exact member of that set, return
-     `err("not_found", f"Unknown table '{table[:64]}'.", known_tables=<the set>)`
+  1. enumerate the queryable tables with the query of REQ-33 into a **list**
+     named `known` (never a Python `set` — `json.dumps` cannot serialize a set);
+  2. if `table` is not an exact member of `known`, return
+     `err("not_found", f"Unknown table '{table[:64]}'.", known_tables=sorted(known))`
      — this is the identifier-injection defence, and it is why hostile names such
      as `orders"; DROP TABLE orders; --` never reach SQL;
   3. columns from
@@ -701,7 +701,10 @@ addopts = "-q"
 - **REQ-49 (MUST)** Row admission (`build_rows_envelope(columns, fetched)`):
   1. `row_limited = len(fetched) > MAX_RETURN_ROWS`; keep the first
      `MAX_RETURN_ROWS` rows as candidates;
-  2. `budget = MAX_ENVELOPE_BYTES - RESERVED_METADATA_BYTES`; `used = 0`;
+  2. `budget = MAX_ENVELOPE_BYTES - RESERVED_METADATA_BYTES - len(dumps(columns).encode("utf-8"))`;
+     `used = 0`. The `columns` array is measured, not assumed to fit the reserve:
+     an agent can alias a column to an arbitrarily long name, and a fixed reserve
+     would let the envelope overshoot the cap;
   3. for each candidate row: normalize every cell, counting truncations; compute
      `size = len(dumps(normalized_row).encode("utf-8")) + 1`; if
      `used + size > budget`, set `byte_limited = True` and **stop admitting rows**;
@@ -712,6 +715,11 @@ addopts = "-q"
   5. the envelope is
      `{"columns", "rows", "row_count", "truncated", "truncation_reason", "cells_truncated"}`
      where `row_count == len(rows)`.
+
+  A negative `budget` admits no rows and yields `truncated: true` with
+  `truncation_reason: "byte_limit"`. The cap is then guaranteed for every result
+  whose serialized `columns` array alone fits `MAX_ENVELOPE_BYTES`; a query whose
+  column *names* exceed that on their own is out of scope.
 
   This guarantees the serialized success envelope never exceeds
   `MAX_ENVELOPE_BYTES` UTF-8 bytes, and that the output is always valid JSON.
@@ -770,9 +778,11 @@ addopts = "-q"
      run from the repository root.
   7. **Tools** — the three tool names, one-line purposes and their JSON result
      shapes.
-  8. **Safety** — the layered read-only design of section 3.8 in five bullets,
-     and the statement that write, DDL, PRAGMA, ATTACH and transaction requests
-     are refused.
+  8. **Safety** — five bullets: the four layers of section 3.8 (positive
+     statement policy, `mode=ro` URI plus `PRAGMA query_only=ON`, the SQLite
+     authorizer, one statement per call), then the resource bounds of REQ-37 and
+     REQ-47 (2 s query budget, 200-row cap, per-cell and per-envelope byte caps).
+     State that write, DDL, PRAGMA, ATTACH and transaction requests are refused.
   9. **Tests** — the four gate commands.
   10. **Live-agent checklist** — the table of REQ-76.
 - **REQ-54 (MUST)** The README contains no path outside the repository except the
