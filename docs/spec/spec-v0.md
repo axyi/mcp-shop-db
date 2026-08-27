@@ -416,7 +416,12 @@ addopts = "-q"
        whitespace; empty result → reject;
      - strip leading `(` and whitespace, take the first whitespace-delimited
        token, lowercase it; if it is not `select` or `with` → reject with a
-       message naming the offending keyword;
+       message naming the offending keyword. Named consequences, all rejected
+       here: `INSERT`, `UPDATE`, `DELETE`, `REPLACE`, `DROP`, `ALTER`, `CREATE`
+       (including `TEMP`, `VIEW`, `INDEX`, `TRIGGER`, `VIRTUAL TABLE`),
+       `PRAGMA`, `ATTACH`, `DETACH`, `VACUUM`, `ANALYZE`, `REINDEX`, `EXPLAIN`,
+       a bare `VALUES` clause, and `BEGIN` / `COMMIT` / `ROLLBACK` /
+       `SAVEPOINT` / `RELEASE`;
      - strip one optional trailing `;`; if a `;` remains and
        `sqlite3.complete_statement(body + ";")` is false → reject as multi-statement.
 
@@ -866,43 +871,54 @@ addopts = "-q"
 
 ### 5.3 `tests/test_policy.py` — safety
 
-- **REQ-59 (MUST)** Parametrize over this exact list; each must return
-  `ok is False` **and** `error.code == "policy_denied"`:
+- **REQ-59 (MUST)** Copy this list into `tests/test_policy.py` **verbatim as
+  Python source** — the escape sequences and the whitespace-only entry are
+  load-bearing test inputs, not display text. Parametrize over it; each entry
+  must return `ok is False` **and** `error.code == "policy_denied"`:
 
-  ```text
-  INSERT INTO customers (first_name,last_name,email,created_at) VALUES ('a','b','c','d')
-  UPDATE orders SET status='cancelled'
-  DELETE FROM orders WHERE status='cancelled'
-  DROP TABLE orders
-  ALTER TABLE orders RENAME TO o2
-  CREATE TABLE t (x INT)
-  CREATE TEMP TABLE t (x INT)
-  CREATE VIEW v AS SELECT 1
-  CREATE INDEX ix ON orders(status)
-  CREATE TRIGGER tr AFTER INSERT ON orders BEGIN SELECT 1; END
-  PRAGMA table_info(orders)
-  PRAGMA query_only=OFF
-  ATTACH DATABASE '/tmp/x.db' AS x
-  DETACH DATABASE x
-  BEGIN
-  COMMIT
-  ROLLBACK
-  SAVEPOINT sp
-  RELEASE sp
-  VACUUM
-  ANALYZE
-  REINDEX
-  EXPLAIN SELECT 1
-  REPLACE INTO customers (id) VALUES (1)
-  SELECT 1; SELECT 2
-  SELECT 1; DROP TABLE orders
-  -- comment\nDELETE FROM orders
-  /* c */ UPDATE orders SET status='x'
-  (three spaces, i.e. a blank statement)
-  SELECT load_extension('/tmp/evil.so')
-  SELECT * FROM pragma_table_info('orders')
-  SELECT * FROM pragma_query_only
+  ```python
+  DENIED = [
+      "INSERT INTO customers (first_name,last_name,email,created_at) VALUES ('a','b','c','d')",
+      "UPDATE orders SET status='cancelled'",
+      "DELETE FROM orders WHERE status='cancelled'",
+      "DROP TABLE orders",
+      "ALTER TABLE orders RENAME TO o2",
+      "CREATE TABLE t (x INT)",
+      "CREATE TEMP TABLE t (x INT)",
+      "CREATE VIEW v AS SELECT 1",
+      "CREATE INDEX ix ON orders(status)",
+      "CREATE TRIGGER tr AFTER INSERT ON orders BEGIN SELECT 1; END",
+      "CREATE VIRTUAL TABLE vt USING fts5(x)",
+      "PRAGMA table_info(orders)",
+      "PRAGMA query_only=OFF",
+      "ATTACH DATABASE '/tmp/x.db' AS x",
+      "DETACH DATABASE x",
+      "BEGIN",
+      "COMMIT",
+      "ROLLBACK",
+      "SAVEPOINT sp",
+      "RELEASE sp",
+      "VACUUM",
+      "ANALYZE",
+      "REINDEX",
+      "EXPLAIN SELECT 1",
+      "VALUES (1),(2)",
+      "REPLACE INTO customers (id) VALUES (1)",
+      "SELECT 1; SELECT 2",
+      "SELECT 1; DROP TABLE orders",
+      "-- comment\nDELETE FROM orders",
+      "/* c */ UPDATE orders SET status='x'",
+      "   ",
+      "SELECT load_extension('/tmp/evil.so')",
+      "SELECT * FROM pragma_table_info('orders')",
+      "SELECT * FROM pragma_query_only",
+  ]
   ```
+
+  `"-- comment\nDELETE FROM orders"` must contain a real newline (a Python
+  escape, not the two characters `\` and `n`) — it proves the comment stripper
+  cannot be used to smuggle a write past the lexical gate. `"   "` is three
+  spaces and proves the empty-statement branch.
 
 - **REQ-60 (MUST)** A separate test proves the authorizer — not the lexical gate
   — is what stops the last three entries: for
@@ -911,11 +927,23 @@ addopts = "-q"
   `server.check_policy(sql) is None` **and** the returned error message contains
   `not authorized` (case-insensitive).
 - **REQ-61 (MUST)** These must all succeed (`ok is True`), proving the policy is
-  not over-broad: `select 1 union select 2`;
-  `  WITH t AS (SELECT 1 x) SELECT * FROM t  `;
-  `SELECT sqlite_version()`; `SELECT * FROM sqlite_master`;
-  `WITH RECURSIVE seq(n) AS (SELECT 1 UNION ALL SELECT n+1 FROM seq WHERE n < 10) SELECT SUM(n) FROM seq`
-  returning `[[55]]`.
+  not over-broad. Copy verbatim as Python source — the leading and trailing
+  spaces in the second entry are load-bearing:
+
+  ```python
+  ALLOWED = [
+      "select 1 union select 2",
+      "  WITH t AS (SELECT 1 x) SELECT * FROM t  ",
+      "SELECT sqlite_version()",
+      "SELECT * FROM sqlite_master",
+      "SELECT COUNT(*) FROM customers WHERE phone LIKE '+79%'",
+  ]
+  ```
+
+  Additionally
+  `"WITH RECURSIVE seq(n) AS (SELECT 1 UNION ALL SELECT n+1 FROM seq WHERE n < 10) SELECT SUM(n) FROM seq"`
+  must return `rows == [[55]]`, proving recursive CTEs and aggregate functions
+  survive the authorizer.
 - **REQ-62 (MUST)** A test opens `server.open_connection(restricted=False)` and
   asserts `PRAGMA query_only` reads back `1` and that `DELETE FROM orders` raises
   `sqlite3.OperationalError` — proving the connection layer is independent of the
