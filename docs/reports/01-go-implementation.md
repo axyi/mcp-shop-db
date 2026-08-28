@@ -2,7 +2,7 @@
 STATUS: done
 COMMITS:
   d3cc37c feat: implement read-only stdio MCP server per spec-v0
-  <follow-up> fix: widen db_unavailable error handling, trim README, harden control-question test
+  68fda4c fix: address code-review follow-ups on the mcp-shop-db implementation
 FILES: .gitignore, .python-version, README.md, config.example.json, docs/llm-usage.md,
   docs/prompts/01-go-implementation.md, docs/reports/01-go-implementation.md, pyproject.toml,
   server.py, smoke_stdio.py, tests/__init__.py, tests/conftest.py, tests/test_control_questions.py,
