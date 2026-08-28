@@ -1,0 +1,16 @@
+{
+  "mcpServers": {
+    "shop-db": {
+      "command": "uv",
+      "args": [
+        "--directory",
+        "/absolute/path/to/mcp-shop-db",
+        "run",
+        "--locked",
+        "python",
+        "server.py"
+      ],
+      "env": {}
+    }
+  }
+}

@@ -9,3 +9,7 @@ __pycache__/
 *.db-wal
 *.db-shm
 .claude/agent-memory/
+
+.pytest_cache/
+.ruff_cache/
+uv-cache/

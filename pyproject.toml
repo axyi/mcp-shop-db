@@ -1,0 +1,31 @@
+[project]
+name = "mcp-shop-db"
+version = "0.1.0"
+description = "Read-only stdio MCP server over the shop.db SQLite database"
+readme = "README.md"
+requires-python = ">=3.12,<3.14"
+dependencies = [
+    "mcp==2.1.1",
+    "pydantic==2.13.4",
+]
+
+[dependency-groups]
+dev = [
+    "pytest==9.1.1",
+    "ruff==0.15.4",
+]
+
+[tool.ruff]
+line-length = 110
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["server"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "-q"
