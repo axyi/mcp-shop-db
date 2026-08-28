@@ -8,3 +8,4 @@ __pycache__/
 # so never ignore *.db here.
 *.db-wal
 *.db-shm
+.claude/agent-memory/
