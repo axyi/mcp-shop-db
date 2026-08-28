@@ -1,5 +1,12 @@
 import server
 
+EXPECTED_DESCRIPTIONS = {
+    "customers": "Registered shop customers: name, unique email, optional phone, signup timestamp.",
+    "products": "Product catalogue: name, category, unit price, stock quantity, creation timestamp.",
+    "orders": "Customer orders: owning customer, order timestamp, lifecycle status, order total.",
+    "order_items": "Line items of an order: product, quantity ordered, unit price at order time.",
+}
+
 
 def test_q1_list_tables(call):
     payload = call(server.list_tables)
@@ -9,7 +16,7 @@ def test_q1_list_tables(call):
     assert by_name["products"]["row_count"] == 50
     assert by_name["orders"]["row_count"] == 750
     assert by_name["order_items"]["row_count"] == 1900
-    for name, description in server.TABLE_DESCRIPTIONS.items():
+    for name, description in EXPECTED_DESCRIPTIONS.items():
         assert by_name[name]["description"] == description
 
 

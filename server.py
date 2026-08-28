@@ -265,7 +265,7 @@ def list_tables() -> str:
     """
     try:
         conn = open_connection(restricted=False)
-    except FileNotFoundError:
+    except (FileNotFoundError, sqlite3.Error):
         return err("db_unavailable", "Database file is not available.")
 
     try:
@@ -311,7 +311,7 @@ def describe_table(
     """
     try:
         conn = open_connection(restricted=False)
-    except FileNotFoundError:
+    except (FileNotFoundError, sqlite3.Error):
         return err("db_unavailable", "Database file is not available.")
 
     try:
@@ -405,7 +405,7 @@ def read_query(
 
     try:
         conn = open_connection(restricted=True)
-    except FileNotFoundError:
+    except (FileNotFoundError, sqlite3.Error):
         return err("db_unavailable", "Database file is not available.")
 
     # CONTRACT: sqlite3.Warning is NOT a subclass of sqlite3.Error, so it needs its

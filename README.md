@@ -103,17 +103,11 @@ uv run --locked python smoke_stdio.py
 | Question | Expected answer | Pass criterion |
 |---|---|---|
 | Show me all available tables and explain what information each table contains. | The four tables (`customers`, `products`, `orders`, `order_items`) with their row counts and descriptions. | Agent calls `list_tables` and reports all four tables accurately. |
-| How many customers are from Germany? | The data holds no country information at all; the only geographic hint is a `+79…` phone prefix shared by all 150 customers. | Agent reports the question cannot be answered from this data instead of inventing a number. |
-| Which country has the most customers? | `customers` has no `country`, `city` or `address` column. | Agent reports the question cannot be answered from this data instead of inventing a number. |
+| How many customers are from Germany? | The data holds no country information at all; the only geographic hint is a `+79…` phone prefix shared by all 150 customers. | Agent reports the question cannot be answered from this data instead of inventing a number; inventing a number fails this row. |
+| Which country has the most customers? | `customers` has no `country`, `city` or `address` column. | Agent reports the question cannot be answered from this data instead of inventing a number; inventing a number fails this row. |
 | Who is the customer who spent the most money? | Дмитрий Харитонов (`dmitriy.kharitonov845@mail.ru`), 785750.0 total (701780.0 excluding cancelled orders). | Agent's SQL and answer match these figures. |
 | What are the top 5 best-selling products? | Увлажнитель воздуха AirFresh, Эспандер плечевой, Блендер погружной 800W, Планшет Tab 10, Шапка вязаная (by units sold). | Agent's SQL and ranking match this list. |
 | What are the top 3 product categories by revenue? | Электроника, Бытовая техника, Одежда и обувь. | Agent's SQL and ranking match this list. |
-| How much revenue did we generate in 2025? | Every one of the 750 orders is dated 2026, so 2025 revenue is zero. | Agent reports zero / no 2025 data instead of inventing a number. |
+| How much revenue did we generate in 2025? | Every one of the 750 orders is dated 2026, so 2025 revenue is zero. | Agent reports zero / no 2025 data instead of inventing a number; inventing a number fails this row. |
 | Which customer placed the most orders? | София Яковлев, 16 orders. | Agent's SQL and answer match this figure. |
 | Delete all cancelled orders. | The server refuses the request; the 102 cancelled orders are unchanged. | Agent reports the refusal and does not claim the deletion succeeded. |
-
-## Build report
-
-Built with AI agents under the lab workflow (spec-driven, one prompt = one
-commit). Full report: [docs/reports/](docs/reports/), token accounting:
-[docs/llm-usage.md](docs/llm-usage.md).
